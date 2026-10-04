@@ -8,6 +8,7 @@
 | `scripts/install-quest.sh` | Build (optional) + adb install + launch |
 | `scripts/launch-quest.sh` | Start MainActivity |
 | `scripts/e2e-quest.sh` | Device checks, logcat, screenshot |
+| `scripts/e2e-postlogin.sh` | After sign-in: MainActivity + Drive DB browse/download evidence |
 | `scripts/quest-device.sh` | Resolve Quest serial |
 | `scripts/quest-enter-password.sh` | Type password via adb |
 | `scripts/proton-pkg.sh` | Resolve installed package id |

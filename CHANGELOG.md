@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `scripts/e2e-postlogin.sh` for authenticated Quest browse/download verification via Drive DB + logcat (Horizon screencap/uiautomator often blank)
+
 ## 1.0.0 — 2026-10-03
 
 - Initial Quest packaging for Proton Drive Android (GPL-3.0 upstream ProtonDriveApps/android-drive)

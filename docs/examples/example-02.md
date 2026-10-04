@@ -3,8 +3,9 @@
 ```bash
 ./scripts/e2e-quest.sh
 # After login on headset:
-# - Browse My files
-# - Open/download a small file
-# - Optional: upload via share intent if Horizon picker allows
-ls downloads/e2e-*/screen.png
+./scripts/e2e-postlogin.sh
+# Confirms MainActivity (not Login), Account/Volume/Link rows in db-drive,
+# FileDownloadEntity and/or thumbnail.dec cache, optional SEND upload probe.
+# Horizon screencap is often black — trust VERDICT.txt + db-browse-summary.txt.
+ls downloads/e2e-postlogin-*/VERDICT.txt
 ```
