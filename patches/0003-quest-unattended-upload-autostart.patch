@@ -1,0 +1,167 @@
+diff --git a/app/src/main/kotlin/me/proton/android/drive/ui/navigation/AppNavGraph.kt b/app/src/main/kotlin/me/proton/android/drive/ui/navigation/AppNavGraph.kt
+index 97da422..503745b 100644
+--- a/app/src/main/kotlin/me/proton/android/drive/ui/navigation/AppNavGraph.kt
++++ b/app/src/main/kotlin/me/proton/android/drive/ui/navigation/AppNavGraph.kt
+@@ -222,12 +222,16 @@ fun AppNavGraph(
+     LaunchedEffect(deepLinkIntent) {
+         deepLinkIntent
+             .onEach { intent ->
++                android.util.Log.i("QuestUpload", "Deep link intent received data=${intent.data}")
+                 CoreLogger.d(DriveLogTag.UI, "Deep link intent received")
+                 if (!navController.ensureNavGraphSet().handleDeepLink(intent)) {
+                     // clear query params with user information before logging
+                     val uri = intent.data?.buildUpon()?.apply { clearQuery() }?.build()
++                    android.util.Log.e("QuestUpload", "Invalid deep link: $uri")
+                     IllegalStateException("Invalid deep link: $uri").log(DriveLogTag.UI)
+                     homeNavController = createNavController(localContext)
++                } else {
++                    android.util.Log.i("QuestUpload", "handleDeepLink OK")
+                 }
+             }
+             .launchIn(this)
+diff --git a/app/src/main/kotlin/me/proton/android/drive/ui/viewmodel/UploadToViewModel.kt b/app/src/main/kotlin/me/proton/android/drive/ui/viewmodel/UploadToViewModel.kt
+index bf07a3f..fce4ea1 100644
+--- a/app/src/main/kotlin/me/proton/android/drive/ui/viewmodel/UploadToViewModel.kt
++++ b/app/src/main/kotlin/me/proton/android/drive/ui/viewmodel/UploadToViewModel.kt
+@@ -30,9 +30,12 @@ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.combine
++import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.flow.shareIn
+ import kotlinx.coroutines.flow.stateIn
+ import kotlinx.coroutines.launch
++import java.util.concurrent.atomic.AtomicBoolean
++import android.util.Log
+ import me.proton.android.drive.extension.getDefaultMessage
+ import me.proton.android.drive.extension.log
+ import me.proton.android.drive.ui.handler.FolderCreatedHandler
+@@ -100,6 +103,27 @@ class UploadToViewModel @Inject constructor(
+             )
+         }
+     }
++    private val autoUploadStarted = AtomicBoolean(false)
++
++    init {
++        // Quest / unattended: when deeplink already includes destination folder + URIs, start
++        // upload without requiring the Horizon panel Upload button (uiautomator/input often miss it).
++        Log.i(
++            "QuestUpload",
++            "UploadTo init parentId=${parentId?.id} uris=${uploadParameters?.uris?.size ?: 0} " +
++                "firstUri=${uploadParameters?.uris?.firstOrNull()?.uri}"
++        )
++        if (parentId != null && !uploadParameters?.uris.isNullOrEmpty()) {
++            viewModelScope.launch {
++                Log.i("QuestUpload", "waiting for parentLink Folder…")
++                parentLink.first { link -> link is DriveLink.Folder }
++                if (autoUploadStarted.compareAndSet(false, true)) {
++                    Log.i("QuestUpload", "autostart upload()")
++                    upload(navigateToStorageFull = {}, exitApp = {})
++                }
++            }
++        }
++    }
+ 
+     val initialViewState = UploadToViewState(
+         filesViewState = initialFilesViewState,
+@@ -190,6 +214,7 @@ class UploadToViewModel @Inject constructor(
+                     exitApp()
+                 }
+             }.onFailure { error ->
++                Log.e("QuestUpload", "Failed to upload ${copiedUris.size} files", error)
+                 error.log(VIEW_MODEL, "Failed to upload ${copiedUris.size} files")
+                 cleanupOnFailure(copiedUris)
+                 when (error) {
+diff --git a/app/src/main/kotlin/me/proton/android/drive/usecase/ProcessIntent.kt b/app/src/main/kotlin/me/proton/android/drive/usecase/ProcessIntent.kt
+index 1bafaf9..d6d0ab0 100644
+--- a/app/src/main/kotlin/me/proton/android/drive/usecase/ProcessIntent.kt
++++ b/app/src/main/kotlin/me/proton/android/drive/usecase/ProcessIntent.kt
+@@ -33,7 +33,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
+ import kotlinx.coroutines.flow.filterNotNull
+ import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.launch
++import kotlinx.coroutines.withContext
+ import kotlinx.coroutines.withTimeoutOrNull
++import android.util.Log
+ import me.proton.android.drive.extension.deepLinkBaseUrl
+ import me.proton.android.drive.extension.log
+ import me.proton.android.drive.log.DriveLogTag
+@@ -42,12 +44,15 @@ import me.proton.android.drive.ui.MainActivity
+ import me.proton.android.drive.ui.navigation.Screen
+ import me.proton.android.drive.ui.navigation.UriWithFileName
+ import me.proton.android.drive.ui.viewmodel.AccountViewModel
++import me.proton.core.drive.base.domain.extension.toResult
+ import me.proton.core.drive.base.domain.log.LogTag.UPLOAD
+ import me.proton.core.drive.base.domain.usecase.BroadcastMessages
+ import me.proton.core.drive.drivelink.upload.domain.usecase.ValidateUploadLimit
++import me.proton.core.drive.link.domain.extension.rootFolderId
+ import me.proton.core.drive.messagequeue.domain.entity.BroadcastMessage
+ import me.proton.core.drive.notification.domain.entity.NotificationId
+ import me.proton.core.drive.notification.domain.usecase.RemoveNotification
++import me.proton.core.drive.share.domain.usecase.GetMainShare
+ import me.proton.core.drive.upload.domain.usecase.GetUploadFileName
+ import me.proton.core.util.kotlin.CoreLogger
+ import me.proton.core.util.kotlin.deserializeOrNull
+@@ -62,6 +67,7 @@ class ProcessIntent @Inject constructor(
+     private val getUploadFileName: GetUploadFileName,
+     private val validateUploadLimit: ValidateUploadLimit,
+     private val validateExternalUri: ValidateExternalUri,
++    private val getMainShare: GetMainShare,
+ ) {
+     operator fun invoke(
+         intent: Intent,
+@@ -76,7 +82,15 @@ class ProcessIntent @Inject constructor(
+                 }
+                 onActionSend { processActionSend(intent, deepLinkIntent, accountViewModel) }
+                 onActionSendMultiple { processActionSendMultiple(intent, deepLinkIntent, accountViewModel) }
+-                onActionViewWithData(isNewIntent) {
++                // Quest / cold-start: accept drive:// VIEW on first launch too (not only onNewIntent),
++                // otherwise am start deeplinks are dropped before NavController can handle them.
++                val acceptView = isNewIntent ||
++                    data?.scheme == appContext.getString(I18N.string.deeplink_scheme)
++                Log.i(
++                    "QuestUpload",
++                    "ProcessIntent action=${action} isNewIntent=$isNewIntent acceptView=$acceptView data=${data}"
++                )
++                onActionViewWithData(acceptView) {
+                     processActionViewWithData(intent, deepLinkIntent)
+                 }
+             }
+@@ -137,7 +151,13 @@ class ProcessIntent @Inject constructor(
+         intent: Intent,
+         deepLinkIntent: MutableSharedFlow<Intent>,
+     ) {
+-        deepLinkIntent.emit(intent)
++        // Same subscriber gate as SEND — MutableSharedFlow(replay=0) drops emits with no collectors.
++        Log.i("QuestUpload", "VIEW waiting for deepLinkIntent subscribers…")
++        deepLinkIntent.subscriptionCount.first { count -> count > 0 }
++        Log.i("QuestUpload", "VIEW emitting deepLinkIntent data=${intent.data}")
++        withContext(Dispatchers.Main) {
++            deepLinkIntent.emit(intent)
++        }
+     }
+ 
+     private suspend fun actionSend(
+@@ -151,9 +171,12 @@ class ProcessIntent @Inject constructor(
+             accountViewModel.state.first { state -> state == AccountViewModel.State.AccountReady }
+             val userId = accountViewModel.primaryAccount.filterNotNull().first().userId
+             uploadUris().takeIfNotEmpty()?.let { uploadUris ->
++                // Quest unattended path: preset My files root so UploadTo can autostart.
++                val parentId = getMainShare(userId).toResult().getOrNull()?.rootFolderId
+                 val uploadRoute = Screen.Upload(
+                     userId = userId,
+                     uris = uploadUris,
++                    parentId = parentId,
+                 )
+                 with (deepLinkIntent) {
+                     subscriptionCount.first { count -> count > 0 }
+@@ -180,7 +203,8 @@ class ProcessIntent @Inject constructor(
+     }
+ 
+     companion object {
+-        private const val PRIMARY_ACCOUNT_READY_TIMEOUT_MILLIS = 5_000L
++        // Quest cold-start / AppLock: NavHost collectors can take longer than phone baseline.
++        private const val PRIMARY_ACCOUNT_READY_TIMEOUT_MILLIS = 30_000L
+     }
+ }
+ 
