@@ -1,0 +1,65 @@
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index b00607e..f764db1 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -39,12 +39,23 @@
+         android:largeHeap="true"
+         tools:replace="android:theme">
+ 
++        <!-- Meta Quest / Horizon OS — same metadata Proton Pass quest flavor ships. -->
++        <meta-data
++            android:name="com.oculus.supportedDevices"
++            android:value="quest2|questpro|quest3|quest3s" />
++
+         <activity
+             android:name=".ui.MainActivity"
+             android:exported="true"
+             android:launchMode="singleTop"
+             android:taskAffinity=""
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
+             android:theme="@style/ProtonTheme.Splash.Drive.StatusBarFix">
++            <!--
++              Meta Quest / Horizon OS: keep a real enabled MainActivity launcher (Pass-style).
++              Landscape + adjustResize for headset keyboard. VoxHash / proton-drive-meta-quest.
++            -->
+ 
+             <intent-filter>
+                 <action android:name="android.intent.action.MAIN" />
+@@ -75,7 +86,35 @@
+         <activity
+             android:name="me.proton.core.auth.presentation.ui.AddAccountActivity"
+             android:theme="@style/ProtonTheme.Drive.AddAccount"
+-            tools:replace="theme"/>
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="theme,android:screenOrientation,android:windowSoftInputMode"/>
++        <!-- Quest panel email/password + SSO (mirrors Pass quest / VPN Quest packaging). -->
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.LoginActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.LoginTwoStepActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.LoginSsoActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.SecondFactorActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.TwoPassModeActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
+         <activity
+             android:name="me.proton.core.payment.presentation.ui.BillingActivity"
+             android:windowSoftInputMode="adjustResize" />

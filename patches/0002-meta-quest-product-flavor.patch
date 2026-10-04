@@ -1,0 +1,18 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 29b6699..1dd8749 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -239,6 +239,13 @@ android {
+         create("prod") {
+             versionCode = (versionCodeFromGitCommitCount * 10) + 1
+         }
++        // Meta Quest packaging (VoxHash / proton-drive-meta-quest) — Pass-style .quest id.
++        // Uses defaultConfig proton.me / drive-api (production endpoints).
++        create("quest") {
++            versionCode = (versionCodeFromGitCommitCount * 10) + 4
++            applicationIdSuffix = ".quest"
++            versionNameSuffix = "-quest"
++        }
+         driveSdkRustFlavors.forEach { flavor ->
+             getByName(flavor) {
+                 buildConfigField("String", "SDK_VERSION_NAME", "\"$driveSdkRustVersion\"")

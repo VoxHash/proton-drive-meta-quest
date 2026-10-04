@@ -1,0 +1,13 @@
+downloads/*.apk
+downloads/e2e-*/
+downloads/*.png
+downloads/*.log
+downloads/ui.xml
+android-drive/
+android-drive/local.properties
+*.iml
+.DS_Store
+*.apk
+.gradle/
+**/build/
+local.properties
