@@ -21,13 +21,17 @@ Not affiliated with Proton AG or Meta Platforms. Proton Drive is a trademark of 
 ## Quick start
 
 ```bash
-# Developer Mode enabled on Quest; adb devices shows Quest 3
-# Requires JDK 17 + Android SDK (see Configuration)
+# Developer Mode enabled on Quest; adb devices -l shows Quest 3 with state "device"
+# Requires JDK 17 + writable Android SDK (see Configuration / SUPPORT.md)
 ./scripts/install-quest.sh
 ./scripts/e2e-quest.sh
+# After sign-in on the headset:
+./scripts/e2e-postlogin.sh
 ```
 
 In the headset: sign in with Proton **email and password**. If you get “incorrect password” despite a known-good account, Horizon’s keyboard likely mangled symbols — focus the password field and run `PROTON_PASSWORD='…' ./scripts/quest-enter-password.sh` from this PC.
+
+Post-login e2e proves browse/download and an unattended upload via FileProvider + `drive://` (Horizon screencap is often blank — trust `VERDICT.txt`).
 
 ## Installation
 

@@ -1,13 +1,38 @@
-downloads/*.apk
-downloads/e2e-*/
-downloads/*.png
-downloads/*.log
-downloads/ui.xml
+# Upstream checkout + local Gradle
 android-drive/
 android-drive/local.properties
-*.iml
-.DS_Store
-*.apk
+local.properties
 .gradle/
 **/build/
-local.properties
+
+# IDE / OS
+*.iml
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+
+# Build outputs & sideload artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Local e2e dumps, logs, SDK noise (never commit)
+downloads/*
+!downloads/.gitkeep
+*.log
+
+# Android / SDK local paths
+*.hprof
+captures/
+.cxx/
